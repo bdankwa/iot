@@ -64,13 +64,13 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td>{{ latest_reading.temperature | number }}&deg;C</td><td>{{ latest_reading.eventtime | date : 'medium' }}</td>
+                        <td>{{ (latest_reading.temperature * 9.0/5.0 + 32)| number }}&deg;F</td><td>{{ latest_reading.eventtime | date : 'medium' }}</td>
                     </tr>
                 </tbody>
             </table>
         </div>
         <div class="col-md-4" style="overflow-wrap:break-word">
-            <h2>Alerts</h2>
+            <h2>Alerts</h2>  (< 60 &deg;F) OR (> 75 &deg; F)
 
             <pre ng-repeat="alert in latest_alerts">{{ alert | json }}</pre>
             <br />
@@ -89,7 +89,7 @@
                 </thead>
                 <tbody>
                     <tr ng-repeat="t in temperatures">
-                        <td>{{ t.temperature | number }}&deg;C</td><td>{{ t.eventtime | date : 'medium' }}</td>
+                        <td>{{ (t.temperature * 9.0/5.0 + 32 )| number }}&deg;F</td><td>{{ t.eventtime | date : 'medium' }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -103,20 +103,30 @@
         (function() {
             'use strict';
 
-            angular.module('app', []).controller('indexController', function($scope, $http) {
+            angular.module('app', []).controller('indexController', function($scope, $http, $interval) {
 
                 $scope.latest_alerts = [];
                 $scope.temperatures = [];
+                $scope.temps = [];
 
                 $scope.send = function(value) {
                     $http.post('/api/command/', {command: value});
                 };
 
+                $interval(function(){
+
                 $http.get('/api/alerts').then(function(response) {
                     $scope.latest_alerts = response.data.reverse();
                 });
+                },300);
+
+                $interval(function(){
+
 
                 $http.get('/api/temperatures').then(function(result) {
+
+                  $scope.temperatures = [];
+                  $scope.temps = [];
 
                     if(result.data.length > 0) {
                         angular.forEach(result.data, function(x) {
@@ -125,17 +135,21 @@
                             var d = new Date(0);
                             d.setUTCSeconds(utcSeconds);
 
-                            $scope.temperatures.push({
+                            $scope.temps.push({
                                 deviceid: x.deviceid._,
                                 temperature: x.temperaturereading._,
                                 eventtime: d
                             });
-                            $scope.temperatures.reverse();
+                            $scope.temps.reverse();
                         });
 
-                        $scope.latest_reading = $scope.temperatures[0];
+                        $scope.latest_reading = $scope.temps[0];
                     }
+                    angular.forEach($scope.temps, function(y){
+                      $scope.temperatures.push(y);
+                    });
                 });
+              },3000);
             });
         })();
     </script>
